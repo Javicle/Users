@@ -14,7 +14,7 @@ from src.entities.user.exc import (
 )
 from src.entities.user.value_objects.rules import ValidationRules
 
-logger = setup_logger(__name__)
+logger = setup_logger("user_entity")
 
 
 class User(AbstractUser):
