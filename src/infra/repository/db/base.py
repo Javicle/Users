@@ -26,7 +26,6 @@ async def init_db() -> None:
         raise ValueError("Engine is not initialized.")
     async with engine.begin() as conn:
         # Атрибут для чистки базы данных
-        # await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
 

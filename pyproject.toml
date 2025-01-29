@@ -28,6 +28,7 @@ uvicorn = "^0.34.0"
 pydantic-settings = "^2.0.3"
 tools-openverse = {git = "https://github.com/Javicle/_ToolsOpenVerse.git"}
 asyncpg = "^0.30.0"
+pytest = "^8.3.4"
 
 [build-system]
 requires = ["poetry-core"]

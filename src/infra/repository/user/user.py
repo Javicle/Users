@@ -73,11 +73,11 @@ class UserRepository:
 
         if user_id:
             if isinstance(user_id, str):
-                user_id = UUID(hex=user_id)
+                user_id = UUID(user_id)
         stmt = select(UserDBModel)
         if user_id:
             stmt = stmt.where(UserDBModel.id == user_id)
-        if user_login:
+        elif user_login:
             stmt = stmt.where(UserDBModel.login == user_login)
 
         result = await self._session.execute(stmt)
