@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -55,7 +55,7 @@ class UserLoginDTO(UserBaseDTO):
     email: Optional[EmailStr] = None
     password: str
 
-    def model_post_init(self, _):
+    def model_post_init(self, _: Self) -> None:
         if not self.login and not self.email:
             raise ValueError("Either login or email must be provided")
 

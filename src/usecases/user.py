@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends
 from tools_openverse.common.logger_ import setup_logger
+from tools_openverse.common.models import LoginOAuth2PasswordRequestForm
 
 from src.entities.user.dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO
 from src.entities.user.entity import User
@@ -17,7 +18,7 @@ class UserService:
     def __init__(
         self,
         user_repository: UserRepository,
-    ):
+    ) -> None:
         self.user_repository = user_repository
 
     async def create_user(self, user_dto: UserCreateDTO) -> Optional[UserResponseDTO]:
@@ -140,6 +141,19 @@ class UserService:
             return response_dtos
         except Exception as e:
             logger.error("Ошибка при получении всех пользователей: %s", e)
+            raise
+
+    async def log_in(self, form_data: LoginOAuth2PasswordRequestForm) -> Optional[UserResponseDTO]:
+        logger.info("Попытка войти в аккаунт")
+        try:
+            user = await self.user_repository.log_in(form_data)
+            logger.info("Вход в аккаунт успешен")
+            if user:
+                return user
+            else:
+                return None
+        except UserNotFoundHTTPException as e:
+            logger.error("Пользователь не найден: %s", e)
             raise
 
 

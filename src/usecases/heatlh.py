@@ -6,6 +6,7 @@ from tools_openverse.common.heath import ServiceCheck, ServiceStatusResponse
 
 class DatabaseHealthService(ServiceCheck):
     def __init__(self, service_name: str, session: AsyncSession):
+        super().__init__(service_name=service_name)
         self.service_name = service_name
         self.session = session
 
@@ -29,6 +30,7 @@ class DatabaseHealthService(ServiceCheck):
 
 class RedisHealthCheck(ServiceCheck):
     def __init__(self, service_name: str, redis_client: Redis):
+        super().__init__(service_name=service_name)
         self.service_name = service_name
         self.redis_client = redis_client
 
@@ -38,9 +40,9 @@ class RedisHealthCheck(ServiceCheck):
             return ServiceStatusResponse(
                 service_name=self.service_name, success=True, message="Redis is healthy"
             )
-        except Exception as e:
+        except Exception as exc:
             return ServiceStatusResponse(
                 service_name=self.service_name,
                 success=False,
-                message=f"Redis is unhealthy: {str(e)}",
+                message=f"Redis is unhealthy: {str(exc)}",
             )

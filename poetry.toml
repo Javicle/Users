@@ -1,2 +1,2 @@
 [virtualenvs]
-prompt = "null"
+in-project = true

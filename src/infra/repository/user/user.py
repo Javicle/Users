@@ -7,6 +7,7 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from tools_openverse.common.logger_ import setup_logger
+from tools_openverse.common.models import LoginOAuth2PasswordRequestForm
 
 from src.entities.user.dto import UserResponseDTO, UserUpdateDTO, to_user_response_dto
 from src.entities.user.entity import User
@@ -16,6 +17,7 @@ from ..db.base import get_db
 from .exc import (
     AttributeAlreadyExists,
     BaseUserHTTPException,
+    InvalidCredentialsHTTPException,
     UserNotFoundHTTPException,
 )
 
@@ -154,6 +156,37 @@ class UserRepository:
             for user in users:
                 print(user)
         return users
+
+    async def log_in(self, form_data: LoginOAuth2PasswordRequestForm) -> Optional[UserResponseDTO]:
+        logger.info("Получение пользователя из базы данных")
+        try:
+            stmt = select(UserDBModel).filter(UserDBModel.login == form_data.login)
+            result = await self._session.execute(stmt)
+            db_user = result.scalar_one_or_none()
+
+            if not db_user:
+                raise UserNotFoundHTTPException(
+                    message=f"User with login: {form_data.login} not found"
+                )
+
+            if db_user.password != form_data.password:
+                raise InvalidCredentialsHTTPException(
+                    message=f"Password: {form_data.password} incorrect"
+                )
+
+            return UserResponseDTO(
+                id=db_user.id,
+                login=db_user.login,
+                name=db_user.name,
+                email=db_user.email,
+                created_at=db_user.created_at,
+                updated_at=db_user.updated_at,
+                is_active=db_user.is_active,
+            )
+
+        except Exception as exc:
+            logger.error("Ошибка при получении пользователя из базы данных: %s", str(exc))
+            raise
 
 
 async def get_user_repository(

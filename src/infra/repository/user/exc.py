@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from src.entities.user.entity import User
 
@@ -45,3 +45,8 @@ class UserNotFoundHTTPException(HTTPException):
             message if message else f"Пользователь {user or user_id or user_login} не существует."
         )
         super().__init__(status_code=400, detail=detail)
+
+
+class InvalidCredentialsHTTPException(HTTPException):
+    def __init__(self, message: str):
+        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail=message)

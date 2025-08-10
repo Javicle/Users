@@ -1,14 +1,22 @@
-from typing import Optional
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from tools_openverse.common.logger_ import setup_logger
+from tools_openverse.common.models import LoginOAuth2PasswordRequestForm
 
 from src.entities.user.dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO
 from src.infra.repository.user.exc import UserNotFoundHTTPException
 from src.usecases.user import UserService, get_user_service
 
+get_user_service_dep = Annotated[UserService, Depends(get_user_service)]
+
 logger = setup_logger("route")
+
+
+form_data_depends = Annotated[LoginOAuth2PasswordRequestForm, Depends(
+    LoginOAuth2PasswordRequestForm.as_form
+)]
 
 
 class UserRoute:
@@ -72,67 +80,72 @@ class UserRoute:
             summary="Health check",
         )
 
+        self.router.add_api_route(
+            "/users/log_in",
+            self.log_in_user,
+            methods=["POST"],
+            response_model=UserResponseDTO,
+            summary="Get User with login and password",
+        )
+
     async def create_user(
         self,
         user_dto: UserCreateDTO,
-        user_service: UserService = Depends(get_user_service),
+        user_service: get_user_service_dep,
     ) -> Optional[UserResponseDTO]:
         logger.info("Request to create user with login: %s", user_dto.login)
         try:
-            result = await user_service.create_user(user_dto)
-            if result:
-                logger.info("User successfully created: %s", result)
-                return result
-            return None
-        except Exception as e:
-            logger.error("Error creating user: %s", str(e))
+            result_user = await user_service.create_user(user_dto)
+        except Exception as exc:
+            logger.error("Error creating user: %s", str(exc))
             raise
 
+        if result_user:
+            logger.info("User successfully created: %s", result_user)
+            return result_user
+        return None
+
     async def get_user_by_id(
-        self, user_id: UUID | str, user_service: UserService = Depends(get_user_service)
+        self, user_id: UUID | str, user_service: get_user_service_dep
     ) -> UserResponseDTO:
         logger.info("Request to get user by ID: %s", user_id)
         try:
-            result = await user_service.get_user_by_id_or_login(user_id=user_id)
-            if not result:
-                raise UserNotFoundHTTPException(message=f"User with ID {user_id} not found")
-            logger.info("User found: %s", result.login)
-            return result
-        except Exception as e:
-            logger.error("Error getting user: %s", str(e))
+            result_user = await user_service.get_user_by_id_or_login(user_id=user_id)
+        except Exception as exc:
+            logger.error("Error getting user: %s", str(exc))
             raise
+        if not result_user:
+            raise UserNotFoundHTTPException(message=f"User with ID {user_id} not found")
+        logger.info("User found: %s", result_user.login)
+        return result_user
 
     async def get_user_by_login(
-        self, user_login: str, user_service: UserService = Depends(get_user_service)
+        self, user_login: str, user_service: get_user_service_dep
     ) -> Optional[UserResponseDTO]:
         logger.info("Request to get user by login: %s", user_login)
         try:
-            result = await user_service.get_user_by_id_or_login(user_login=user_login)
-            if result:
-                logger.info("User found: %s", result.login)
-                return result
+            result_user = await user_service.get_user_by_id_or_login(user_login=user_login)
+            if result_user:
+                logger.info("User found: %s", result_user.login)
+                return result_user
             return None
-        except UserNotFoundHTTPException as e:
-            logger.error("User with login %s not found: %s", user_login, e)
+        except UserNotFoundHTTPException as exc:
+            logger.error("User with login %s not found: %s", user_login, exc)
             raise
 
     async def update_user(
-        self,
-        user_dto: UserUpdateDTO,
-        user_service: UserService = Depends(get_user_service),
+        self, user_dto: UserUpdateDTO, user_service: get_user_service_dep
     ) -> UserResponseDTO:
         logger.info("Request to update user data: %s", user_dto.login)
         try:
-            result = await user_service.update_user(user_dto)
+            result_user = await user_service.update_user(user_dto)
             logger.info("User data for %s successfully updated", user_dto.login)
-            return result
-        except UserNotFoundHTTPException as e:
-            logger.error("Error updating user data %s: %s", user_dto.login, e)
+            return result_user
+        except UserNotFoundHTTPException as exc:
+            logger.error("Error updating user data %s: %s", user_dto.login, exc)
             raise
 
-    async def delete_user_by_id(
-        self, user_id: UUID, user_service: UserService = Depends(get_user_service)
-    ) -> None:
+    async def delete_user_by_id(self, user_id: UUID, user_service: get_user_service_dep) -> None:
         logger.info("Request to delete user with ID: %s", user_id)
         try:
             await user_service.delete_user(user_id=user_id)
@@ -142,7 +155,7 @@ class UserRoute:
             raise
 
     async def delete_user_by_login(
-        self, user_login: str, user_service: UserService = Depends(get_user_service)
+        self, user_login: str, user_service: get_user_service_dep
     ) -> None:
         logger.info("Request to delete user with login: %s", user_login)
         try:
@@ -152,12 +165,27 @@ class UserRoute:
             logger.error("User with login %s not found", user_login)
             raise
 
+    async def log_in_user(
+        self,
+        user_service: get_user_service_dep,
+        form_data: form_data_depends,
+    ) -> UserResponseDTO | None:
+        logger.info("Request to log in user with login: %s", form_data.login)
+        try:
+            result_log_in = await user_service.log_in(form_data)
+            if result_log_in:
+                logger.info("User logged in: %s", result_log_in.login)
+                return result_log_in
+
+            return None
+        except Exception as exc:
+            logger.error("Error logging in user: %s", str(exc))
+            raise
+
     async def health_check(self) -> dict[str, str]:
         return {"status": "OK"}
 
-    async def get_all_users(
-        self, user_service: UserService = Depends(get_user_service)
-    ) -> list[UserResponseDTO]:
+    async def get_all_users(self, user_service: get_user_service_dep) -> list[UserResponseDTO]:
         logger.info("Request to get all users")
         try:
             result = await user_service.get_all_users()
